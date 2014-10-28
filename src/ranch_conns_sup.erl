@@ -19,7 +19,7 @@
 
 %% API.
 -export([start_link/6]).
--export([start_protocol/2]).
+-export([start_protocol/3]).
 -export([active_connections/1]).
 
 %% Supervisor internals.
@@ -27,6 +27,7 @@
 -export([system_continue/3]).
 -export([system_terminate/4]).
 -export([system_code_change/4]).
+-export([protocol_init/3]).
 
 -type conn_type() :: worker | supervisor.
 -type shutdown() :: brutal_kill | timeout().
@@ -67,10 +68,18 @@ start_link(Ref, ConnType, Shutdown, Transport, AckTimeout, Protocol) ->
 %% We do not need the reply, we only need the ok from the supervisor
 %% to continue. The supervisor sends its own pid when the acceptor can
 %% continue.
--spec start_protocol(pid(), inet:socket()) -> ok.
-start_protocol(SupPid, Socket) ->
-	SupPid ! {?MODULE, start_protocol, self(), Socket},
-	receive SupPid -> ok end.
+-spec start_protocol(pid(), module(), inet:socket()) -> {ok, pid()}.
+start_protocol(SupPid, Transport, Socket) ->
+	SupPid ! {?MODULE, start_protocol, self()},
+	receive
+		{ok, ConnPid, AckTimeout, Ref, SupPid} ->
+			Transport:controlling_process(Socket, ConnPid),
+			ConnPid ! {shoot, Ref, Transport, Socket, AckTimeout},
+			ok;
+		{error, Reason, SupPid} ->
+			Transport:close(Socket),
+			{error, Reason}
+	end.
 
 %% We can't make the above assumptions here. This function might be
 %% called from anywhere.
@@ -107,19 +116,17 @@ init(Parent, Ref, ConnType, Shutdown, Transport, AckTimeout, Protocol) ->
 		opts=Opts, ack_timeout=AckTimeout, max_conns=MaxConns}, 0, 0, []).
 
 loop(State=#state{parent=Parent, ref=Ref, conn_type=ConnType,
-		transport=Transport, protocol=Protocol, opts=Opts,
+		protocol=Protocol, opts=Opts,
 		ack_timeout=AckTimeout, max_conns=MaxConns},
 		CurConns, NbChildren, Sleepers) ->
 	receive
-		{?MODULE, start_protocol, To, Socket} ->
-			case Protocol:start_link(Ref, Socket, Transport, Opts) of
+		{?MODULE, start_protocol, To} ->
+			case proc_lib:start_link(?MODULE, protocol_init, [Protocol, Ref, Opts]) of
 				{ok, Pid} ->
-					Transport:controlling_process(Socket, Pid),
-					Pid ! {shoot, Ref, Transport, Socket, AckTimeout},
 					put(Pid, true),
 					CurConns2 = CurConns + 1,
 					if CurConns2 < MaxConns ->
-							To ! self(),
+							To ! {ok, Pid, AckTimeout, Ref, self()},
 							loop(State, CurConns2, NbChildren + 1,
 								Sleepers);
 						true ->
@@ -127,12 +134,11 @@ loop(State=#state{parent=Parent, ref=Ref, conn_type=ConnType,
 								[To|Sleepers])
 					end;
 				Ret ->
-					To ! self(),
+					To ! {error, Ret, self()},
 					error_logger:error_msg(
 						"Ranch listener ~p connection process start failure; "
 						"~p:start_link/4 returned: ~999999p~n",
 						[Ref, Protocol, Ret]),
-					Transport:close(Socket),
 					loop(State, CurConns, NbChildren, Sleepers)
 			end;
 		{?MODULE, active_connections, To, Tag} ->
@@ -264,3 +270,8 @@ report_error(Ref, Protocol, Pid, Reason) ->
 		"Ranch listener ~p had connection process started with "
 		"~p:start_link/4 at ~p exit with reason: ~999999p~n",
 		[Ref, Protocol, Pid, Reason]).
+
+protocol_init(Protocol, Ref, Opts) ->
+	ok = proc_lib:init_ack({ok, self()}),
+	{Transport, Socket} = ranch:accept_ack(Ref),
+	Protocol:init(Ref, Transport, Socket, Opts).

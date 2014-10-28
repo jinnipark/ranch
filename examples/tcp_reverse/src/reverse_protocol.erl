@@ -4,12 +4,11 @@
 -behaviour(gen_server).
 -behaviour(ranch_protocol).
 
-%% API.
--export([start_link/4]).
+%% ranch_protocol
+-export([init/4]).
 
 %% gen_server.
 -export([init/1]).
--export([init/4]).
 -export([handle_call/3]).
 -export([handle_cast/2]).
 -export([handle_info/2]).
@@ -20,24 +19,18 @@
 
 -record(state, {socket, transport}).
 
-%% API.
-
-start_link(Ref, Socket, Transport, Opts) ->
-	proc_lib:start_link(?MODULE, init, [Ref, Socket, Transport, Opts]).
+%% ranch_protocol
+init(_Ref, Transport, Socket, _Opts = []) ->
+	ok = Transport:setopts(Socket, [{active, once}]),
+	gen_server:enter_loop(?MODULE, [],
+		#state{socket=Socket, transport=Transport},
+		?TIMEOUT).
 
 %% gen_server.
 
 %% This function is never called. We only define it so that
 %% we can use the -behaviour(gen_server) attribute.
 init([]) -> {ok, undefined}.
-
-init(Ref, Socket, Transport, _Opts = []) ->
-	ok = proc_lib:init_ack({ok, self()}),
-	ok = ranch:accept_ack(Ref),
-	ok = Transport:setopts(Socket, [{active, once}]),
-	gen_server:enter_loop(?MODULE, [],
-		#state{socket=Socket, transport=Transport},
-		?TIMEOUT).
 
 handle_info({tcp, Socket, Data}, State=#state{
 		socket=Socket, transport=Transport}) ->
