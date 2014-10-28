@@ -68,13 +68,13 @@ start_link(Ref, ConnType, Shutdown, Transport, AckTimeout, Protocol) ->
 %% We do not need the reply, we only need the ok from the supervisor
 %% to continue. The supervisor sends its own pid when the acceptor can
 %% continue.
--spec start_protocol(pid(), module(), inet:socket()) -> {ok, pid()}.
-start_protocol(SupPid, Transport, Socket) ->
+-spec start_protocol(pid(), inet:socket(), module()) -> {ok, pid()}.
+start_protocol(SupPid, Socket, Transport) ->
 	SupPid ! {?MODULE, start_protocol, self()},
 	receive
 		{ok, ConnPid, AckTimeout, Ref, SupPid} ->
 			Transport:controlling_process(Socket, ConnPid),
-			ConnPid ! {shoot, Ref, Transport, Socket, AckTimeout},
+			ConnPid ! {shoot, Ref, Socket, Transport, AckTimeout},
 			ok;
 		{error, Reason, SupPid} ->
 			Transport:close(Socket),
@@ -273,5 +273,5 @@ report_error(Ref, Protocol, Pid, Reason) ->
 
 protocol_init(Protocol, Ref, Opts) ->
 	ok = proc_lib:init_ack({ok, self()}),
-	{Transport, Socket} = ranch:accept_ack(Ref),
-	Protocol:init(Ref, Transport, Socket, Opts).
+	{Socket, Transport} = ranch:accept_ack(Ref),
+	Protocol:init(Ref, Socket, Transport, Opts).

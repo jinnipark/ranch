@@ -29,7 +29,7 @@ loop(LSocket, Transport, ConnsSup) ->
 		{ok, CSocket} ->
 			%% This call will not return until process has been started
 			%% AND we are below the maximum number of connections.
-			ranch_conns_sup:start_protocol(ConnsSup, Transport, CSocket);
+			ranch_conns_sup:start_protocol(ConnsSup, CSocket, Transport);
 		%% Reduce the accept rate if we run out of file descriptors.
 		%% We can't accept anymore anyway, so we might as well wait
 		%% a little for the situation to resolve itself.

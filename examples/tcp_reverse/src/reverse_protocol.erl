@@ -20,7 +20,7 @@
 -record(state, {socket, transport}).
 
 %% ranch_protocol
-init(_Ref, Transport, Socket, _Opts = []) ->
+init(_Ref, Socket, Transport, _Opts = []) ->
 	ok = Transport:setopts(Socket, [{active, once}]),
 	gen_server:enter_loop(?MODULE, [],
 		#state{socket=Socket, transport=Transport},

@@ -88,9 +88,9 @@ child_spec(Ref, NbAcceptors, Transport, TransOpts, Protocol, ProtoOpts)
 
 -spec accept_ack(ref()) -> ok.
 accept_ack(Ref) ->
-	receive {shoot, Ref, Transport, Socket, AckTimeout} ->
+	receive {shoot, Ref, Socket, Transport, AckTimeout} ->
 		ok = Transport:accept_ack(Socket, AckTimeout),
-		{Transport, Socket}
+		{Socket, Transport}
 	end.
 
 -spec remove_connection(ref()) -> ok.

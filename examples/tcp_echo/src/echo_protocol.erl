@@ -5,7 +5,7 @@
 
 -export([init/4]).
 
-init(_Ref, Transport, Socket, _Opts) ->
+init(_Ref, Socket, Transport, _Opts) ->
 	loop(Socket, Transport).
 
 loop(Socket, Transport) ->
