@@ -76,6 +76,10 @@ start_protocol(SupPid, Socket, Transport) ->
 			Transport:controlling_process(Socket, ConnPid),
 			ConnPid ! {shoot, Ref, Socket, Transport, AckTimeout},
 			ok;
+		{suspend, ConnPid, AckTimeout, Ref, SupPid} ->
+			Transport:controlling_process(Socket, ConnPid),
+			ConnPid ! {shoot, Ref, Socket, Transport, AckTimeout},
+			receive SupPid -> ok end;
 		{error, Reason, SupPid} ->
 			Transport:close(Socket),
 			{error, Reason}
@@ -130,6 +134,7 @@ loop(State=#state{parent=Parent, ref=Ref, conn_type=ConnType,
 							loop(State, CurConns2, NbChildren + 1,
 								Sleepers);
 						true ->
+							To ! {suspend, Pid, AckTimeout, Ref, self()},
 							loop(State, CurConns2, NbChildren + 1,
 								[To|Sleepers])
 					end;

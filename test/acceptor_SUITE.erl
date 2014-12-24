@@ -481,11 +481,13 @@ supervisor_conns_alive(_) ->
 	{ok, Socket} = gen_tcp:connect("localhost", TcpPort,
 		[binary, {active, true}, {packet, raw}]),
 	%% Shut the socket down
+	process_flag(trap_exit, true),
 	ok = gen_tcp:close(LSocket),
 	%% Assert that client is still viable.
 	receive {tcp_closed, _} -> error(closed) after 1500 -> ok end,
 	ok = gen_tcp:send(Socket, <<"poke">>),
 	receive {tcp_closed, _} -> ok end,
+	process_flag(trap_exit, false),
 	_ = erlang:trace(all, false, [all]),
 	ok = clean_traces(),
 	ranch:stop_listener(Name).
