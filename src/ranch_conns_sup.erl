@@ -273,5 +273,7 @@ report_error(Ref, Protocol, Pid, Reason) ->
 
 protocol_init(Protocol, Ref, Opts) ->
 	ok = proc_lib:init_ack({ok, self()}),
-	{Socket, Transport} = ranch:accept_ack(Ref),
-	Protocol:init(Ref, Socket, Transport, Opts).
+	receive {shoot, Ref, Socket, Transport, AckTimeout} ->
+		ok = Transport:accept_ack(Socket, AckTimeout),
+		Protocol:init(Ref, Socket, Transport, Opts)
+	end.

@@ -17,7 +17,6 @@
 -export([start_listener/6]).
 -export([stop_listener/1]).
 -export([child_spec/6]).
--export([accept_ack/1]).
 -export([remove_connection/1]).
 -export([get_port/1]).
 -export([get_max_connections/1]).
@@ -85,13 +84,6 @@ child_spec(Ref, NbAcceptors, Transport, TransOpts, Protocol, ProtoOpts)
 	{{ranch_listener_sup, Ref}, {ranch_listener_sup, start_link, [
 		Ref, NbAcceptors, Transport, TransOpts, Protocol, ProtoOpts
 	]}, permanent, infinity, supervisor, [ranch_listener_sup]}.
-
--spec accept_ack(ref()) -> ok.
-accept_ack(Ref) ->
-	receive {shoot, Ref, Socket, Transport, AckTimeout} ->
-		ok = Transport:accept_ack(Socket, AckTimeout),
-		{Socket, Transport}
-	end.
 
 -spec remove_connection(ref()) -> ok.
 remove_connection(Ref) ->
