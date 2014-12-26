@@ -480,6 +480,7 @@ supervisor_conns_alive(_) ->
 	TcpPort = ranch:get_port(Name),
 	{ok, Socket} = gen_tcp:connect("localhost", TcpPort,
 		[binary, {active, true}, {packet, raw}]),
+	timer:sleep(100),
 	%% Shut the socket down
 	process_flag(trap_exit, true),
 	ok = gen_tcp:close(LSocket),
