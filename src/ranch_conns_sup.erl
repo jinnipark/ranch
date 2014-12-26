@@ -273,7 +273,7 @@ report_error(_, _, _, {shutdown, _}) ->
 report_error(Ref, Protocol, Pid, Reason) ->
 	error_logger:error_msg(
 		"Ranch listener ~p had connection process started with "
-		"~p:start_link/4 at ~p exit with reason: ~999999p~n",
+		"~p:init/4 at ~p exit with reason: ~999999p~n",
 		[Ref, Protocol, Pid, Reason]).
 
 protocol_init(Protocol, Ref, Opts) ->
